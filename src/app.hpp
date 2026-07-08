@@ -3,6 +3,8 @@
 #include "renderer.hpp"
 #include <GLFW/glfw3.h>
 
+#include "asset_manager.hpp"
+
 struct Camera {
   glm::vec3 pos;
   float     yaw;
@@ -17,18 +19,6 @@ struct Camera {
   glm::vec3 GetRight() const;
 };
 
-struct Vertex {
-  glm::vec4 pos;
-  glm::vec4 color;
-  glm::vec4 normal;
-  glm::vec2 uv;
-};
-
-struct Material {
-  float shininess;
-  float _pad[3] = {0};
-};
-
 struct PointLight {
   glm::vec4 position;
   glm::vec4 ambient;
@@ -38,7 +28,6 @@ struct PointLight {
   float constant;
   float linear;
   float quadratic;
-  float _padding;
 };
 
 struct DirectionalLight {
@@ -56,16 +45,7 @@ struct SpotLight {
   glm::vec4 specular;
   float     OuterCutOff;
   float     InnerCutOff;
-  float     _padding[2] = {0};
 };
-
-struct PushConstants {
-  glm::mat4 mModel;
-  glm::mat4 mTransformedModel; // transpose(inverse(mModel));
-  Material  mMaterial;
-  uint64_t  pVertexBufferAddress;
-};
-static_assert(sizeof(PushConstants) <= 256, "PushConstants must be 256 bytes or less.");
 
 class App {
 public:
@@ -74,6 +54,7 @@ public:
   uint32_t    mScreenHeight;
 
   Renderer mRenderer;
+  AssetManager mAssetManager;
 
   Camera mCamera;
 

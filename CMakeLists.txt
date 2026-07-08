@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 4.1.1)
 project(KaosEngine LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -34,11 +34,14 @@ elseif(NOT MSVC)
 endif()
  
 #file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
-add_executable(${PROJECT_NAME}
-  src/main.cpp
-  src/impl.cpp
-  src/app.cpp
-  src/renderer.cpp
+add_executable(${PROJECT_NAME})
+target_sources(${PROJECT_NAME}
+  PRIVATE
+    src/main.cpp
+    src/impl.cpp
+    src/app.cpp
+    src/renderer.cpp
+    src/asset_manager.cpp
 )
  
 find_package(Vulkan REQUIRED)
@@ -58,22 +61,6 @@ include(FetchContent)
 # set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.fc-cache" CACHE PATH "")
  
 # ------------------------------------------------------------------
-# Assimp config — trim importers/exporters, kill tests/tools/samples
-# ------------------------------------------------------------------
-set(ASSIMP_BUILD_ALL_IMPORTERS_OFF ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_ALL_EXPORTERS_OFF ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
-set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE) 
-set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_DRACO OFF CACHE BOOL "" FORCE)
- 
-# ------------------------------------------------------------------
 # GLFW config — skip docs/tests/examples (ON by default upstream)
 # ------------------------------------------------------------------
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -82,16 +69,16 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
  
 FetchContent_Declare(
-  assimp
-  GIT_REPOSITORY https://github.com/assimp/assimp.git
-  GIT_TAG        v6.0.5
-  GIT_SHALLOW    TRUE
-)
- 
-FetchContent_Declare(
   glfw
   GIT_REPOSITORY https://github.com/glfw/glfw.git
   GIT_TAG        3.4
+  GIT_SHALLOW    TRUE
+)
+
+FetchContent_Declare(
+  fastgltf 
+  GIT_REPOSITORY https://github.com/spnda/fastgltf.git
+  GIT_TAG        a31be25
   GIT_SHALLOW    TRUE
 )
  
@@ -111,10 +98,10 @@ FetchContent_Declare(
 
 # Declaring everything first, then fetching once, lets CMake overlap
 # the git clones instead of doing them strictly sequentially.
-FetchContent_MakeAvailable(glfw VulkanMemoryAllocator stb assimp)
+FetchContent_MakeAvailable(glfw fastgltf VulkanMemoryAllocator stb)
 
 set_target_properties(VulkanMemoryAllocator PROPERTIES SYSTEM TRUE)
-set_target_properties(assimp PROPERTIES SYSTEM TRUE)
+#set_target_properties(fastgltf PROPERTIES SYSTEM TRUE)
 set_target_properties(glfw PROPERTIES SYSTEM TRUE)
 
 add_library(stb INTERFACE)
@@ -124,8 +111,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 target_link_libraries(${PROJECT_NAME}
     Vulkan::Vulkan
     glfw
+    fastgltf
     VulkanMemoryAllocator
-    assimp
     slang
     stb
 )

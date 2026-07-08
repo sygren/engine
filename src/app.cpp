@@ -1,12 +1,10 @@
 #include "app.hpp"
 #include "GLFW/glfw3.h"
+#include "core.hpp"
 #include "renderer.hpp"
-#include <assimp/Importer.hpp>
-#include <assimp/material.h>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
 #include <filesystem>
 #include <iostream>
+#include <print>
 
 #include <stb_image.h>
 
@@ -20,60 +18,6 @@
       abort();                                                                                                                                       \
     }                                                                                                                                                \
   } while (0)
-
-static std::vector<Vertex> vertices = {
-    // Face avant (Z+) - normal (0, 0, 1)
-    {{-0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, 1.f, 0.f}, {0.f, 0.f}},
-    {{0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, 1.f, 0.f}, {1.f, 0.f}},
-    {{0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, 1.f, 0.f}, {1.f, 1.f}},
-    {{0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, 1.f, 0.f}, {1.f, 1.f}},
-    {{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, 1.f, 0.f}, {0.f, 1.f}},
-    {{-0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, 1.f, 0.f}, {0.f, 0.f}},
-
-    // Face arrière (Z-) - normal (0, 0, -1)
-    {{0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, -1.f, 0.f}, {0.f, 0.f}},
-    {{-0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, -1.f, 0.f}, {1.f, 0.f}},
-    {{-0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, -1.f, 0.f}, {1.f, 1.f}},
-    {{-0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, -1.f, 0.f}, {1.f, 1.f}},
-    {{0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, -1.f, 0.f}, {0.f, 1.f}},
-    {{0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f, -1.f, 0.f}, {0.f, 0.f}},
-
-    // Face gauche (X-) - normal (-1, 0, 0)
-    {{-0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {-1.f, 0.f, 0.f, 0.f}, {0.f, 0.f}},
-    {{-0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {-1.f, 0.f, 0.f, 0.f}, {1.f, 0.f}},
-    {{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {-1.f, 0.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {-1.f, 0.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{-0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {-1.f, 0.f, 0.f, 0.f}, {0.f, 1.f}},
-    {{-0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {-1.f, 0.f, 0.f, 0.f}, {0.f, 0.f}},
-
-    // Face droite (X+) - normal (1, 0, 0)
-    {{0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {1.f, 0.f, 0.f, 0.f}, {0.f, 0.f}},
-    {{0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {1.f, 0.f, 0.f, 0.f}, {1.f, 0.f}},
-    {{0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {1.f, 0.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {1.f, 0.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {1.f, 0.f, 0.f, 0.f}, {0.f, 1.f}},
-    {{0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {1.f, 0.f, 0.f, 0.f}, {0.f, 0.f}},
-
-    // Face bas (Y-) - normal (0, -1, 0)
-    {{-0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, -1.f, 0.f, 0.f}, {0.f, 0.f}},
-    {{0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, -1.f, 0.f, 0.f}, {1.f, 0.f}},
-    {{0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, -1.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, -1.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{-0.5f, -0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, -1.f, 0.f, 0.f}, {0.f, 1.f}},
-    {{-0.5f, -0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, -1.f, 0.f, 0.f}, {0.f, 0.f}},
-
-    // Face haut (Y+) - normal (0, 1, 0)
-    {{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 1.f, 0.f, 0.f}, {0.f, 0.f}},
-    {{0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 1.f, 0.f, 0.f}, {1.f, 0.f}},
-    {{0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 1.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 1.f, 0.f, 0.f}, {1.f, 1.f}},
-    {{-0.5f, 0.5f, -0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 1.f, 0.f, 0.f}, {0.f, 1.f}},
-    {{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 1.f, 0.f, 0.f}, {0.f, 0.f}},
-};
-
-static std::vector<uint32_t> indices = {
-    0, 1, 2, 2, 3, 0,
-};
 
 static bool   gCursorLocked  = true;
 static bool   gCursorWasFree = false;
@@ -220,6 +164,9 @@ void App::Init() {
   // glfwSetCursorPosCallback(pWindowHandle, MouseInputWindowCallback);
   glfwSetScrollCallback(pWindowHandle, MouseScrollbackInputWindowCallback);
   mRenderer.Init(pWindowHandle);
+  std::println("Renderer successfully initialized!");
+  mAssetManager.Init(&mRenderer);
+  std::println("AssetManager successfully initialized!");
 
   mCamera.pos  = glm::vec3(0, 0, 8);
   mCamera.far  = 100.f;
@@ -228,161 +175,174 @@ void App::Init() {
   mCamera.LookAt({0, 0, 0});
 }
 
-struct CameraData {
-  glm::mat4 mProjView;
-  glm::vec4 mPos;
-  glm::vec4 mFront;
+struct Transform {
+  glm::mat4 modelMatrix;
+  glm::mat4 normalMatrix;
 };
 
-struct LightData {
-  PointLight       pointLights[64];
-  DirectionalLight directionalLights[64];
-  SpotLight        spotLights[64];
-  uint32_t         lightsCount;
-  uint32_t         directionalLightsCount;
-  uint32_t         spotLightsCount;
+struct PushConstantsData {
+  uint64_t pVertexBufferAddress;
+  uint32_t transformIndex;
+  uint32_t materialIndex;
 };
+
+struct HighlightPushConstantsData {
+      uint64_t pVertexBufferAddress ; // 8 bytes
+      uint32_t     transformIndex;                               // 4 bytes
+      glm::vec4   color;
+      float    scale;
+};
+
+struct CameraData {
+  glm::mat4 projView;
+  glm::vec4 pos;
+  glm::vec4 front;
+};
+
+struct LightCounts {
+  uint32_t lightsCount;
+  uint32_t directionalLightsCount;
+  uint32_t spotLightsCount;
+};
+
+constexpr uint32_t MAX_TRANSFORMS   = 1000;
+constexpr uint32_t MAX_POINT_LIGHTS = 32;
+constexpr uint32_t MAX_SPOT_LIGHTS  = 32;
+constexpr uint32_t MAX_DIR_LIGHTS   = 32;
+constexpr uint32_t MAX_MATERIALS    = 1000;
 
 void App::Run() {
-  int width, height, alpha_chan;
-  stbi_set_flip_vertically_on_load(true);
-  uint8_t *data = stbi_load("C:\\Users\\mikep\\Desktop\\KaosEngine\\assets\\container2.png", &width, &height, &alpha_chan, STBI_rgb_alpha);
+  const auto &model_handle_opt = mAssetManager.GetGltfModel("C:\\Users\\mikep\\Desktop\\KaosEngine\\assets\\backpack\\scene.gltf");
+  const auto &model_handle     = model_handle_opt.value();
 
-  ImageDesc image_desc{};
-  image_desc.rate         = UPDATE_RATE_NEVER;
-  image_desc.name         = "texture cube";
-  image_desc.type         = IMAGE_TYPE_TEXTURE2D;
-  image_desc.format       = VK_FORMAT_R8G8B8A8_SRGB;
-  image_desc.width        = width;
-  image_desc.height       = height;
-  image_desc.mipmapped    = true;
-  image_desc.pData        = data;
-  auto container2_texture = mRenderer.CreateTexture(image_desc);
-  stbi_image_free(data);
+  std::println("RUN: Successfully created all models");
 
-  data = stbi_load("C:\\Users\\mikep\\Desktop\\KaosEngine\\assets\\container2_specular.png", &width, &height, &alpha_chan, STBI_rgb_alpha);
+  BufferDesc camera_desc{.name = "gCamera", .pData = nullptr, .size = sizeof(CameraData), .rate = UPDATE_RATE_PER_FRAME, .type = BUFFER_TYPE_UBO};
+  auto       camera_data_id = mRenderer.CreateBuffer(camera_desc);
 
-  image_desc.name                  = "specular map cube";
-  image_desc.width                 = width;
-  image_desc.height                = height;
-  image_desc.pData                 = data;
-  auto container2_specular_texture = mRenderer.CreateImage(image_desc);
-  stbi_image_free(data);
+  BufferDesc light_count_desc{
+      .name = "gLightsCount", .pData = nullptr, .size = sizeof(LightCounts), .rate = UPDATE_RATE_PER_FRAME, .type = BUFFER_TYPE_UBO};
+  auto light_count_data_id = mRenderer.CreateBuffer(light_count_desc);
 
-  BufferDesc buffer_desc{};
-  buffer_desc.rate = UPDATE_RATE_NEVER;
+  BufferDesc transform_desc{.name = "gTransforms", .pData = nullptr, .size = sizeof(Transform) * MAX_TRANSFORMS, .rate = UPDATE_RATE_PER_FRAME, .type = BUFFER_TYPE_SSBO};
+  auto       transform_data_id = mRenderer.CreateBuffer(transform_desc);
 
-  buffer_desc.name     = "vertices";
-  buffer_desc.size     = vertices.size() * sizeof(Vertex);
-  buffer_desc.pData    = vertices.data();
-  buffer_desc.type     = BUFFER_TYPE_VERTEX;
-  auto vertices_buffer = mRenderer.CreateBuffer(buffer_desc);
+  BufferDesc point_lights_desc{.name  = "gPointLights",
+                               .pData = nullptr,
+                               .size  = sizeof(PointLight) * MAX_POINT_LIGHTS,
+                               .rate  = UPDATE_RATE_PER_FRAME,
+                               .type  = BUFFER_TYPE_SSBO};
+  auto       _p = mRenderer.CreateBuffer(point_lights_desc);
+  BufferDesc directional_light_desc{.name  = "gDirectionnalLights",
+                                    .pData = nullptr,
+                                    .size  = sizeof(DirectionalLight) * MAX_DIR_LIGHTS,
+                                    .rate  = UPDATE_RATE_PER_FRAME,
+                                    .type  = BUFFER_TYPE_SSBO};
+  auto       _d = mRenderer.CreateBuffer(directional_light_desc);
+  BufferDesc spotlights_desc{
+      .name = "gSpotLights", .pData = nullptr, .size = sizeof(SpotLight) * MAX_SPOT_LIGHTS, .rate = UPDATE_RATE_PER_FRAME, .type = BUFFER_TYPE_SSBO};
+  auto       _s = mRenderer.CreateBuffer(spotlights_desc);
+  BufferDesc material_desc{
+      .name = "gMaterials", .pData = nullptr, .size = sizeof(Material) * MAX_MATERIALS, .rate = UPDATE_RATE_PER_FRAME, .type = BUFFER_TYPE_SSBO};
+  auto _m = mRenderer.CreateBuffer(material_desc);
 
-  buffer_desc.name    = "indices";
-  buffer_desc.size    = indices.size() * sizeof(uint32_t);
-  buffer_desc.pData   = indices.data();
-  buffer_desc.type    = BUFFER_TYPE_INDEX;
-  auto indices_buffer = mRenderer.CreateBuffer(buffer_desc);
-
-  buffer_desc.rate   = UPDATE_RATE_PER_FRAME;
-  buffer_desc.name   = "gCamera";
-  buffer_desc.size   = sizeof(CameraData);
-  buffer_desc.pData  = nullptr;
-  buffer_desc.type   = BUFFER_TYPE_UNKNOWN;
-  auto camera_buffer = mRenderer.CreateBuffer(buffer_desc);
-
-  buffer_desc.rate   = UPDATE_RATE_PER_FRAME;
-  buffer_desc.name   = "gLightsBuffer";
-  buffer_desc.size   = sizeof(LightData);
-  buffer_desc.pData  = nullptr;
-  buffer_desc.type   = BUFFER_TYPE_UNKNOWN;
-  auto lights_buffer = mRenderer.CreateBuffer(buffer_desc);
+  std::println("RUN: Successfully created all buffers");
 
   DescriptorDesc descriptor_desc{};
-  descriptor_desc.shader_stages = VK_SHADER_STAGE_ALL_GRAPHICS;
-  descriptor_desc.AddBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+  descriptor_desc.AddBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
       .AddBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-      .AddBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
-      .AddBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
-      .AddBinding(4, VK_DESCRIPTOR_TYPE_SAMPLER);
-  auto set = mRenderer.CreateDescriptorSet(descriptor_desc);
+      .AddBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+      .AddBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+      .AddBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+      .AddBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+      .AddBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  descriptor_desc.shader_stages = VK_SHADER_STAGE_ALL_GRAPHICS;
+  auto set                      = mRenderer.CreateDescriptorSet(descriptor_desc);
+
+  std::println("RUN: Successfully created descriptor set engine side");
 
   for (auto &frame : mRenderer.mFrames) {
-    auto &frame_set = frame.mDescriptorSet;
-
-    auto &camera_frame_buffer = frame.mUniformBuffers["gCamera"];
-    mRenderer.WriteBufferDescriptorSet(0, camera_frame_buffer, frame_set, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-    auto &lights_frame_buffer = frame.mUniformBuffers["gLightsBuffer"];
-    mRenderer.WriteBufferDescriptorSet(1, lights_frame_buffer, frame_set, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-    mRenderer.WriteImageDescriptorSet(2, container2_texture.mImage, frame_set, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-    mRenderer.WriteImageDescriptorSet(3, container2_specular_texture, frame_set, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-    mRenderer.WriteSamplerDescriptorSet(4, container2_texture.mSampler, frame_set, VK_DESCRIPTOR_TYPE_SAMPLER);
+    mRenderer.WriteBufferDescriptorSet(0, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gTransforms")), frame.mDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    mRenderer.WriteBufferDescriptorSet(1, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gCamera")), frame.mDescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    mRenderer.WriteBufferDescriptorSet(2, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gLightsCount")), frame.mDescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    mRenderer.WriteBufferDescriptorSet(3, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gPointLights")), frame.mDescriptorSet , VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    mRenderer.WriteBufferDescriptorSet(4, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gDirectionnalLights")), frame.mDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    mRenderer.WriteBufferDescriptorSet(5, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gSpotLights")), frame.mDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    mRenderer.WriteBufferDescriptorSet(6, mRenderer.mBuffers.at(frame.mUniformBuffers.at("gMaterials")), frame.mDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   }
 
-  VkPushConstantRange range{};
-  range.size       = sizeof(PushConstants);
-  range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+  auto shader_vertex   = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\phong.slang", "vertMain");
+  auto shader_fragment = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\phong.slang", "fragMain");
+  auto shader_depth_fragment = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\phong.slang", "fragDepth");
 
-  auto vertex_shader         = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\phong.slang", "vertMain");
-  auto fragment_shader       = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\phong.slang", "fragMain");
-  auto light_fragment_shader = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\phong.slang", "fragLight");
+  auto shader_highlight_vertex = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\highlight.slang", "vertMain");
+  auto shader_highlight_fragment = mRenderer.CreateShader("C:\\Users\\mikep\\Desktop\\KaosEngine\\shaders\\highlight.slang", "fragStencil");
 
-  std::vector<VkPushConstantRange>   ranges      = {range};
-  std::vector<VkDescriptorSetLayout> set_layouts = {set.pDescriptorSetLayout};
+  StencilDesc stencil_desc{};
+  stencil_desc.compare_op = VK_COMPARE_OP_ALWAYS;
+  stencil_desc.reference = 0xFF;
+  stencil_desc.compare_mask = 0xFF;
+  stencil_desc.write_mask = 0xFF;
+  stencil_desc.fail_op = VK_STENCIL_OP_KEEP;
+  stencil_desc.depth_fail_op = VK_STENCIL_OP_KEEP;
+  stencil_desc.pass_op = VK_STENCIL_OP_REPLACE;
 
-  GraphicPipelineDesc pipeline_desc{};
-  pipeline_desc.pipeline_layout_desc.layouts = set_layouts;
-  pipeline_desc.pipeline_layout_desc.ranges  = ranges;
+  PipelineDesc pipeline_desc{};
 
-  pipeline_desc.SetShaders(vertex_shader.pShader, fragment_shader.pShader)
-      .SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+  std::vector<VkPushConstantRange>   range{{.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS, .size = sizeof(PushConstantsData)}};
+  std::vector<VkDescriptorSetLayout> layouts{mRenderer.mTexturesSet.pDescriptorSetLayout, set.pDescriptorSetLayout};
+  pipeline_desc.ranges  = range;
+  pipeline_desc.layouts = layouts;
+
+  GraphicPipelineDesc graphic_pipeline_desc{};
+  graphic_pipeline_desc.pipeline_layout_desc = pipeline_desc;
+  graphic_pipeline_desc.SetShaders(shader_vertex.pShader, shader_fragment.pShader)
       .SetPolygonMode(VK_POLYGON_MODE_FILL)
-      .SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE)
-      .SetMultiSamplingNone()
+      .SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+      .SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE)
+      .EnableDepthTest(VK_TRUE, VK_COMPARE_OP_GREATER)
+      .EnableStencilTest(stencil_desc)
       .DisableBlending()
-      .EnableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+      .SetMultiSamplingNone();
+  auto pipeline = mRenderer.CreateGraphicsPipeline(graphic_pipeline_desc);
 
-  auto object_pipeline = mRenderer.CreateGraphicsPipeline(pipeline_desc);
-  pipeline_desc.SetShaders(vertex_shader.pShader, light_fragment_shader.pShader);
+  graphic_pipeline_desc.SetShaders(shader_vertex.pShader, shader_depth_fragment.pShader).DisableStencilTest();
+  auto depth_pipeline = mRenderer.CreateGraphicsPipeline(graphic_pipeline_desc);
 
-  auto light_pipeline = mRenderer.CreateGraphicsPipeline(pipeline_desc);
-  mRenderer.DestroyShader(light_fragment_shader);
-  mRenderer.DestroyShader(fragment_shader);
-  mRenderer.DestroyShader(vertex_shader);
+  stencil_desc.compare_op = VK_COMPARE_OP_NOT_EQUAL;
+  stencil_desc.reference = 0xFF;
+  stencil_desc.pass_op = VK_STENCIL_OP_KEEP;
+  stencil_desc.write_mask = 0x00;
 
-  RenderObject object{};
-  object.useIndexBuffer    = false;
-  object.indexBuffer       = indices_buffer;
-  object.indexCount        = indices.size();
-  object.vertexCount       = vertices.size();
-  object.pushConstantsSize = 0;
+  range[0] = {.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS, .size=sizeof(HighlightPushConstantsData)};
+  graphic_pipeline_desc.SetShaders(shader_highlight_vertex.pShader, shader_highlight_fragment.pShader).DisableDepthTest().EnableStencilTest(stencil_desc);
+  auto highlight_pipeline = mRenderer.CreateGraphicsPipeline(graphic_pipeline_desc);
+  std::println("RUN: Graphic pipelines successfully created!");
 
-  std::vector<RenderObject> objects{};
+  mRenderer.DestroyShader(shader_highlight_fragment);
+  mRenderer.DestroyShader(shader_highlight_vertex);
+  mRenderer.DestroyShader(shader_depth_fragment);
+  mRenderer.DestroyShader(shader_fragment);
+  mRenderer.DestroyShader(shader_vertex);
 
   RenderContext context{};
-  context.objects = objects;
 
-  // std::vector<SpotLight> spot_lights{};
-  std::vector<SpotLight> spot_lights{{{glm::vec4(mCamera.pos, 1.f)},
-                                      {glm::vec4(mCamera.GetFront(), 0.f)},
-                                      {0.f, 0.f, 0.f, 0.f},
-                                      {1.f, 1.f, 1.f, 0.f},
-                                      {1.f, 1.f, 1.f, 0.f},
-                                      cos(glm::radians(12.5f)),
-                                      cos(glm::radians(6.25f))}};
-  // std::vector<PointLight> lights{};
-  std::vector<PointLight> lights{
-      {{1.2f, 1.0, 2.0f, 1.f}, {0.01f, 0.01f, 0.01f, 0.f}, {1.f, 1.f, 1.f, 0.f}, {1.f, 1.f, 1.f, 0.f}, 1.f, 0.09f, 0.032f}};
-  std::vector<DirectionalLight> dir_lights{};
-  // std::vector<DirectionalLight>         dir_lights{{{-0.2f, -1.0f, -0.3f, 0.f}, {0.f, 0.f, 0.f, 0.f}, {0.5f, 0.5f, 0.5f, 0.f}, {1.f, 1.f, 1.f,
-  // 0.f}}};
-  std::vector<glm::vec3>     object_positions{glm::vec3(0.0f, 0.0f, 0.0f),     glm::vec3(2.0f, 5.0f, -15.0f), glm::vec3(-1.5f, -2.2f, -2.5f),
-                                              glm::vec3(-3.8f, -2.0f, -12.3f), glm::vec3(2.4f, -0.4f, -3.5f), glm::vec3(-1.7f, 3.0f, -7.5f),
-                                              glm::vec3(1.3f, -2.0f, -2.5f),   glm::vec3(1.5f, 2.0f, -2.5f),  glm::vec3(1.5f, 0.2f, -1.5f),
-                                              glm::vec3(-1.3f, 1.0f, -1.5f)};
-  std::vector<PushConstants> pcs(lights.size() + object_positions.size());
+  auto                                       *model = model_handle.Get();
+  std::vector<std::vector<PushConstantsData>> pcs(model->meshes.size());
+  std::vector<std::vector<HighlightPushConstantsData>> highlight_pcs(model->meshes.size());
+  std::vector<Transform>                      transforms;
+  std::vector<Material>                       materials;
+
+  std::vector<PointLight>       point_lights;
+  std::vector<DirectionalLight> directional_lights ;
+  std::vector<SpotLight>        spot_lights {{glm::vec4(0), glm::vec4(0), glm::vec4(0.f), glm::vec4(0.5f), glm::vec4(0.5f), cos(glm::radians(12.5f)), cos(glm::radians(6.25f))}};
+
+  std::println("There is {} meshes in the model", model->meshes.size());
+  for (size_t i = 0; i < model->meshes.size(); i++) {
+    std::println("Mesh {} with {} submeshes", i, model->meshes[i].submeshes.size());
+    pcs[i].resize(model->meshes[i].submeshes.size());
+    highlight_pcs[i].resize(model->meshes[i].submeshes.size());
+  }
 
   auto frame     = 0;
   auto last_time = (float)glfwGetTime();
@@ -403,87 +363,121 @@ void App::Run() {
     MouseInputWindowUpdate(pWindowHandle);
     KeyboardInputWindowUpdate(pWindowHandle);
 
-    // lights[0].position = glm::rotate(glm::mat4(1.f), (float)dt, {0, 1, 0}) * lights[0].position;
-    spot_lights[0].position  = glm::vec4(mCamera.pos, 1);
-    spot_lights[0].direction = glm::vec4(mCamera.GetFront(), 0);
-
     context.objects.clear();
+    transforms.clear();
+    materials.clear();
 
-    CameraData cam_data;
-    cam_data.mProjView = mCamera.GetViewProj((float)mScreenWidth / (float)mScreenHeight);
-    cam_data.mPos      = glm::vec4(mCamera.pos, 0);
-    cam_data.mFront    = glm::vec4(mCamera.GetFront(), 0);
-    camera_buffer      = mRenderer.GetPerFrameBuffer("gCamera");
-    std::memcpy(camera_buffer.mVmaAllocationInfo.pMappedData, &cam_data, sizeof(CameraData));
+    spot_lights[0].position = glm::vec4(mCamera.pos, 1.f);
+    spot_lights[0].direction = glm::vec4(glm::normalize(mCamera.GetFront()), 0.f);
 
-    LightData light_data;
-    light_data.lightsCount            = lights.size();
-    light_data.directionalLightsCount = dir_lights.size();
-    light_data.spotLightsCount        = spot_lights.size();
-    std::memcpy(light_data.pointLights, lights.data(), lights.size() * sizeof(PointLight));
-    std::memcpy(light_data.directionalLights, dir_lights.data(), dir_lights.size() * sizeof(DirectionalLight));
-    std::memcpy(light_data.spotLights, spot_lights.data(), spot_lights.size() * sizeof(SpotLight));
-    lights_buffer = mRenderer.GetPerFrameBuffer("gLightsBuffer");
-    std::memcpy(lights_buffer.mVmaAllocationInfo.pMappedData, &light_data, sizeof(LightData));
+    for (size_t i = 0; i < model->meshes.size(); i++) {
+      const auto               &mesh = model->meshes[i];
+      VkBufferDeviceAddressInfo info{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mRenderer.mBuffers[mesh.vertexBuffer].pBuffer};
+      auto                      scale_matrix = glm::scale(glm::mat4(1.f), glm::vec3(0.01f));
+      auto model = scale_matrix * mesh.transform;
+      auto normal = glm::transpose(glm::inverse(glm::mat3(model)));
+      transforms.push_back({model, glm::mat4(normal)});
 
-    auto current_set = mRenderer.GetPerFrameDescriptorSet();
+      for (size_t j = 0; j < mesh.submeshes.size(); j++) {
+        auto &pc      = pcs[i][j];
+        auto &highlight_pc = highlight_pcs[i][j];
+        auto &submesh = mesh.submeshes[j];
 
-    VkBufferDeviceAddressInfo addr_info{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    addr_info.buffer = vertices_buffer.pBuffer;
+        pc.pVertexBufferAddress = vkGetBufferDeviceAddress(mRenderer.pDevice, &info);
+        pc.transformIndex       = transforms.size() - 1;
 
-    for (size_t i = 0; i < lights.size(); i++) {
-      auto &pos = lights[i].position;
-      auto &pc  = pcs[i];
+        highlight_pc.pVertexBufferAddress = pc.pVertexBufferAddress;
+        highlight_pc.transformIndex = pc.transformIndex;
 
-      pc.pVertexBufferAddress = vkGetBufferDeviceAddress(mRenderer.pDevice, &addr_info);
-      pc.mMaterial            = {32};
-      pc.mModel               = glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(pos)), glm::vec3(0.2f));
-      pc.mTransformedModel    = glm::transpose(glm::inverse(pc.mModel));
+        if (submesh.material.baseColorTexture == INVALID_ID) {
+            std::println("Meshes [{}][{}] has invalid baseColorTexture", i, j);
+        }
+        if (submesh.material.metallicRoughnessTexture == INVALID_ID) {
+                    std::println("Meshes [{}][{}] has invalid metallicRoughnessTexture", i, j);
+        }
 
-      RenderObject o      = object;
-      o.pipeline          = light_pipeline;
-      o.usePushConstants  = true;
-      o.pPushConstants    = &pc;
-      o.pushConstantsSize = sizeof(pc);
-      o.useDescriptorSet  = true;
-      o.descriptorSet     = current_set;
+        materials.push_back(submesh.material);
+        pc.materialIndex = materials.size() - 1;
 
-      context.objects.emplace_back(o);
+        RenderObject object{};
+
+        object.pipeline = pipeline;
+
+        object.usePushConstants  = true;
+        object.pPushConstants    = &pc;
+        object.pushConstantsSize = sizeof(PushConstantsData);
+
+        object.useDescriptorSet = true;
+        object.descriptorSet    = mRenderer.GetPerFrameDescriptorSet();
+
+        object.useIndexBuffer = true;
+        object.indexBuffer    = mRenderer.mBuffers[mesh.indexBuffer];
+        object.indexCount     = submesh.indexCount;
+        object.indexOffset    = submesh.indexOffset;
+
+        object.vertexCount  = mRenderer.mBuffers[mesh.vertexBuffer].mVmaAllocationInfo.size / sizeof(Vertex);
+        object.vertexOffset = submesh.vertexOffset;
+
+        context.objects.push_back(object);
+      }
     }
 
-    for (size_t i = lights.size(); i < lights.size() + object_positions.size(); i++) {
-      auto &pos = object_positions[i - lights.size()];
-      auto &pc  = pcs[i];
+    for (size_t i = 0; i < model->meshes.size(); i++) {
+      const auto               &mesh = model->meshes[i];
+      for (size_t j = 0; j < mesh.submeshes.size(); j++) {
+        auto &highlight_pc = highlight_pcs[i][j];
+        auto &submesh = mesh.submeshes[j];
+        highlight_pc.scale = 1.03f;
+        highlight_pc.color = glm::vec4(1.0f, 0.f,0.f, 1.f);
+        RenderObject object{};
 
-      pc.pVertexBufferAddress = vkGetBufferDeviceAddress(mRenderer.pDevice, &addr_info);
-      pc.mMaterial            = {32};
-      pc.mModel               = glm::rotate(glm::translate(glm::mat4(1.f), pos), glm::radians(20.0f * i), {1.0f, 0.3f, 0.5f});
-      pc.mTransformedModel    = glm::transpose(glm::inverse(pc.mModel));
+        object.pipeline = highlight_pipeline;
 
-      RenderObject o      = object;
-      o.pipeline          = object_pipeline;
-      o.usePushConstants  = true;
-      o.pPushConstants    = &pc;
-      o.pushConstantsSize = sizeof(pc);
-      o.useDescriptorSet  = true;
-      o.descriptorSet     = current_set;
+        object.usePushConstants  = true;
+        object.pPushConstants    = &highlight_pc;
+        object.pushConstantsSize = sizeof(HighlightPushConstantsData);
 
-      context.objects.emplace_back(o);
+        object.useDescriptorSet = true;
+        object.descriptorSet    = mRenderer.GetPerFrameDescriptorSet();
+
+        object.useIndexBuffer = true;
+        object.indexBuffer    = mRenderer.mBuffers[mesh.indexBuffer];
+        object.indexCount     = submesh.indexCount;
+        object.indexOffset    = submesh.indexOffset;
+
+        object.vertexCount  = mRenderer.mBuffers[mesh.vertexBuffer].mVmaAllocationInfo.size / sizeof(Vertex);
+        object.vertexOffset = submesh.vertexOffset;
+
+        context.objects.push_back(object);
+      }
     }
+
+    CameraData cam_data{};
+    cam_data.projView = mCamera.GetViewProj((float)mScreenWidth / mScreenHeight);
+    cam_data.pos      = glm::vec4(mCamera.pos, 1.f);
+    cam_data.front    = glm::vec4(mCamera.GetFront(), 0.f);
+    LightCounts light_counts{.lightsCount            = (uint32_t)point_lights.size(),
+                             .directionalLightsCount = (uint32_t)directional_lights.size(),
+                             .spotLightsCount        = (uint32_t)spot_lights.size()};
+
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gLightsCount")].mVmaAllocationInfo.pMappedData, &light_counts, sizeof(LightCounts));
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gPointLights")].mVmaAllocationInfo.pMappedData, point_lights.data(), point_lights.size() * sizeof(PointLight));
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gDirectionnalLights")].mVmaAllocationInfo.pMappedData, directional_lights.data(), directional_lights.size() * sizeof(DirectionalLight));
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gSpotLights")].mVmaAllocationInfo.pMappedData, spot_lights.data(), spot_lights.size() * sizeof(SpotLight));
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gTransforms")].mVmaAllocationInfo.pMappedData, transforms.data(), sizeof(Transform) * transforms.size());
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gCamera")].mVmaAllocationInfo.pMappedData, &cam_data, sizeof(CameraData));
+    std::memcpy(mRenderer.mBuffers[mRenderer.GetPerFrameBuffer("gMaterials")].mVmaAllocationInfo.pMappedData, materials.data(), materials.size() * sizeof(Material));
 
     mRenderer.Draw(context);
   }
 
   vkDeviceWaitIdle(mRenderer.pDevice);
-  // mRenderer.DestroyBuffer(lights_buffer); no need it is destroyed by the renderer since there is a buffer in each frame (MAX_IN_FLIGHT or whatever)
-  // mRenderer.DestroyBuffer(camera_buffer); no need it is destroyed by the renderer since there is a buffer in each frame (MAX_IN_FLIGHT or whatever)
-  mRenderer.DestroyImage(container2_specular_texture);
-  mRenderer.DestroyTexture(container2_texture);
-  mRenderer.DestroyBuffer(indices_buffer);
-  mRenderer.DestroyBuffer(vertices_buffer);
-  mRenderer.DestroyPipeline(light_pipeline);
-  mRenderer.DestroyPipeline(object_pipeline);
+
+  mRenderer.DestroyPipeline(highlight_pipeline);
+  mRenderer.DestroyPipeline(depth_pipeline);
+  mRenderer.DestroyPipeline(pipeline);
   mRenderer.DestroyDescriptorSet(set);
+  mRenderer.DestroyBuffer(camera_data_id);
 }
 
 App::~App() {

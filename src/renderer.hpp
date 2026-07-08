@@ -12,6 +12,8 @@
 #include <span>
 #include <vector>
 
+#include "core.hpp"
+
 struct SlangContext {
   Slang::ComPtr<slang::IGlobalSession> pGlobalSession;
   Slang::ComPtr<slang::ISession>       pSession;
@@ -48,6 +50,16 @@ struct DescriptorDesc {
   DescriptorDesc &AddBinding(uint32_t binding, VkDescriptorType type);
 };
 
+struct StencilDesc {
+    VkCompareOp compare_op = VK_COMPARE_OP_ALWAYS;
+    uint32_t reference = 0x0;
+    uint32_t compare_mask = 0xFF;
+    VkStencilOp fail_op = VK_STENCIL_OP_KEEP;
+    VkStencilOp depth_fail_op = VK_STENCIL_OP_KEEP;
+    VkStencilOp pass_op = VK_STENCIL_OP_KEEP;
+    uint32_t write_mask = 0xFF;
+};
+
 struct PipelineDesc {
   std::span<VkPushConstantRange>   ranges;
   std::span<VkDescriptorSetLayout> layouts;
@@ -70,11 +82,11 @@ struct GraphicPipelineDesc {
   GraphicPipelineDesc &SetMultiSamplingNone();
   GraphicPipelineDesc &DisableBlending();
   GraphicPipelineDesc &DisableDepthTest();
+  GraphicPipelineDesc &DisableStencilTest();
   GraphicPipelineDesc &EnableBlendingAdditive();
   GraphicPipelineDesc &EnableBlendingAlphaBend();
   GraphicPipelineDesc &EnableDepthTest(bool write_enable, VkCompareOp op);
-  // GraphicPipelineDesc &SetColorAttachmentFormat(VkFormat format);
-  // GraphicPipelineDesc &SetDepthFormat(VkFormat format);
+  GraphicPipelineDesc &EnableStencilTest(const StencilDesc& desc);
 };
 
 struct Pipeline {
@@ -118,9 +130,14 @@ struct Sampler {
 };
 
 enum BufferType {
-  BUFFER_TYPE_UNKNOWN = 0,
-  BUFFER_TYPE_VERTEX  = 1,
-  BUFFER_TYPE_INDEX   = 2,
+  BUFFER_TYPE_SSBO = 0,
+  BUFFER_TYPE_UBO  = 1,
+};
+
+enum BufferUsage {
+  BUFFER_USAGE_UNKNOWN = 0,
+  BUFFER_USAGE_VERTEX  = 1,
+  BUFFER_USAGE_INDEX   = 2,
 };
 
 struct BufferDesc {
@@ -128,13 +145,22 @@ struct BufferDesc {
   void            *pData;
   size_t           size;
   UpdateRate       rate;
-  BufferType       type;
+  BufferType type;
+  BufferUsage      usage;
 };
 
 struct Buffer {
   VkBuffer          pBuffer;
   VmaAllocation     pVmaAllocation;
   VmaAllocationInfo mVmaAllocationInfo;
+};
+
+struct TextureDesc {
+  std::string_view name;
+  void            *pData;
+  uint32_t         width;
+  uint32_t         height;
+  bool             mipmapped;
 };
 
 struct Texture {
@@ -161,7 +187,7 @@ struct Frame {
 
   DescriptorSet mDescriptorSet;
 
-  std::unordered_map<std::string, Buffer> mUniformBuffers;
+  std::unordered_map<std::string, BufferId> mUniformBuffers;
 };
 
 struct ImmediateSubmit {
@@ -188,8 +214,10 @@ struct RenderObject {
   bool     useIndexBuffer;
   Buffer   indexBuffer;
   uint32_t indexCount;
+  uint32_t indexOffset;
 
   uint32_t vertexCount;
+  uint32_t vertexOffset;
 };
 
 struct RenderContext {
@@ -230,6 +258,13 @@ public:
 
   ResizeRequest mResizeRequest = {};
 
+  std::unordered_map<BufferId, Buffer> mBuffers;
+  uint32_t                             mBufferIdCount = 0;
+
+  DescriptorSet                          mTexturesSet;
+  std::unordered_map<TextureId, Texture> mTextures;
+  uint32_t                               mTextureIdCount = 0;
+
   void Init(GLFWwindow *window);
   void Draw(const RenderContext &context);
 
@@ -238,7 +273,7 @@ public:
 
   void RequestResize(GLFWwindow *window);
 
-  Buffer        GetPerFrameBuffer(std::string_view name);
+  BufferId      GetPerFrameBuffer(std::string_view key);
   DescriptorSet GetPerFrameDescriptorSet();
 
   void WriteBufferDescriptorSet(uint32_t binding, Buffer &buffer, DescriptorSet &set, VkDescriptorType type);
@@ -246,13 +281,14 @@ public:
   void WriteSamplerDescriptorSet(uint32_t binding, Sampler &sampler, DescriptorSet &set, VkDescriptorType type);
   void WriteTextureDescriptorSet(uint32_t binding, Texture &texture, DescriptorSet &set, VkDescriptorType type);
 
-  Shader CreateShader(std::filesystem::path path, std::string_view entry_point = "main");
-  Buffer CreateBuffer(BufferDesc &desc);
-  Image  CreateImage(ImageDesc &desc);
-  Image  CreateImageAndUpload(void *data, uint32_t width, uint32_t height, VkImageUsageFlags usage_flags, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB,
-                              bool mipmapped = false);
+  Shader   CreateShader(std::filesystem::path path, std::string_view entry_point = "main");
+  BufferId CreateBuffer(BufferDesc &desc);
+  void     DestroyBuffer(BufferId id);
+  Image    CreateImage(ImageDesc &desc);
 
-  Texture       CreateTexture(ImageDesc &image_desc);
+  TextureId CreateTexture(TextureDesc &texture_desc);
+  void      DestroyTexture(TextureId id);
+
   Pipeline      CreateGraphicsPipeline(const GraphicPipelineDesc &builder);
   DescriptorSet CreateDescriptorSet(DescriptorDesc &desc);
 
@@ -264,6 +300,9 @@ public:
   void DestroyPipeline(Pipeline &pipeline);
 
 private:
+  void RegisterTexture(VkImageView view, uint32_t index);
+  void RegisterSampler(VkSampler sampler, uint32_t index);
+
   Buffer CreateBufferInternal(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage mem_usage, VmaAllocationCreateFlags flags);
   Image  CreateImageInternal(VkExtent3D extent, VkFormat format, VkImageUsageFlags usage, bool mipmapped);
 
@@ -285,11 +324,13 @@ private:
   void CreateSwapchain(GLFWwindow *window, uint32_t width, uint32_t height, VkSwapchainKHR old_swapchain = VK_NULL_HANDLE);
   void CreateSlangSession();
   void CreateMainDescriptorPool();
+  void CreateMainTexturesSet();
   void CreateFrames();
   void CreateImmediateSubmitTools();
 
   void DestroyImmediateSubmitTools();
   void DestroyFrames();
+  void DestroyMainTexturesSet();
   void DestroyMainDescriptorPool();
   void DestroySlangSession();
   void DestroySwapchain(Swapchain &swapchain);

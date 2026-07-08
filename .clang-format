@@ -1,8 +1,8 @@
-BasedOnStyle: LLVM    
+BasedOnStyle: LLVM
 AlignConsecutiveDeclarations:
   Enabled: true
 AlignConsecutiveAssignments:
   Enabled: true
 AlignTrailingComments:
   Kind: Always
-ColumnLimit: 150
+ColumnLimit: 180
