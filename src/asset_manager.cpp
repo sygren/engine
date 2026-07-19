@@ -16,7 +16,7 @@
 #include "core.hpp"
 #include "fastgltf/types.hpp"
 #include "fastgltf/util.hpp"
-#include "renderer.hpp"
+#include "renderer/renderer.hpp"
 
 void AssetManager::Init(Renderer *renderer) { p_renderer = renderer; }
 
@@ -215,6 +215,7 @@ std::optional<ModelHandle> AssetManager::GetGltfModel(std::filesystem::path path
       },
       [&](fastgltf::sources::Array& array) {
           int width,height,nrChannels;
+          stbi_set_flip_vertically_on_load(false);
           uint8_t *data = stbi_load_from_memory((const stbi_uc*)array.bytes.data(), array.bytes.size(), &width, &height, &nrChannels, STBI_rgb_alpha);
           handle = GetTexture(key, data, width, height);
           stbi_image_free(data);
@@ -225,6 +226,7 @@ std::optional<ModelHandle> AssetManager::GetGltfModel(std::filesystem::path path
 
           if (auto *array = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
               int width,height,nrChannels;
+              stbi_set_flip_vertically_on_load(false);
               uint8_t *data = stbi_load_from_memory((const stbi_uc*)array->bytes.data(), array->bytes.size(), &width, &height, &nrChannels, STBI_rgb_alpha);
               handle = GetTexture(key, data, width, height);
               stbi_image_free(data);
@@ -236,6 +238,7 @@ std::optional<ModelHandle> AssetManager::GetGltfModel(std::filesystem::path path
     }, image.data);
 
     if (!handle.has_value()) {
+          std::println("WARNING: failed to load texture {} (image {}) for model {}", i, gltf_tex.imageIndex.value(), key);
       continue;
     }
 

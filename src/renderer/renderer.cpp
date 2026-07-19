@@ -1,6 +1,5 @@
 #include "renderer.hpp"
 #include "GLFW/glfw3.h"
-#include "core.hpp"
 #include <algorithm>
 #include <array>
 #include <iostream>
@@ -906,9 +905,11 @@ TextureId Renderer::CreateTexture(TextureDesc &texture_desc) {
   VkSamplerCreateInfo sampler_info{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
   sampler_info.minFilter    = VK_FILTER_LINEAR;
   sampler_info.magFilter    = VK_FILTER_LINEAR;
-  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampler_info.minLod = 0.f;
+  sampler_info.maxLod = VK_LOD_CLAMP_NONE;
   VK_CHECK(vkCreateSampler(pDevice, &sampler_info, nullptr, &texture.mSampler.pSampler));
 
   CHECK(mTextureIdCount != INVALID_ID);
@@ -1029,35 +1030,36 @@ void Renderer::DrawColor(const RenderContext &context, VkCommandBuffer cmd, VkEx
   auto color_attachment = InitColorAttachmentInfo(mDrawColorImage.pView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   auto depth_attachment = InitDepthColorAttachmentInfo(mDrawDepthImage.pView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
   auto render_info      = InitRenderingInfo(draw_extent, &color_attachment, &depth_attachment);
-  vkCmdBeginRendering(cmd, &render_info);
+  for (const auto& pass : context.passes) {
+      vkCmdBeginRendering(cmd, &render_info);
+      VkViewport viewport{.width = (float)draw_extent.width, .height = (float)draw_extent.height, .minDepth = 0.f, .maxDepth = 1.f};
+      vkCmdSetViewport(cmd, 0, 1, &viewport);
+      VkRect2D scissor{.extent = draw_extent};
+      vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-  VkViewport viewport{.width = (float)draw_extent.width, .height = (float)draw_extent.height, .minDepth = 0.f, .maxDepth = 1.f};
-  vkCmdSetViewport(cmd, 0, 1, &viewport);
-  VkRect2D scissor{.extent = draw_extent};
-  vkCmdSetScissor(cmd, 0, 1, &scissor);
+      for (const auto& object: pass.objects) {
+          vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.pipeline.pPipeline);
+          if (object.descriptor_set.has_value()) {
+            std::array<VkDescriptorSet, 2> sets {mTexturesSet.pDescriptorSet, object.descriptor_set->pDescriptorSet};
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.pipeline.pLayout, 0, sets.size(), sets.data(), 0, nullptr);
+          } else {
+              vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.pipeline.pLayout, 0, 1, &mTexturesSet.pDescriptorSet, 0, nullptr);
+          }
 
-  for (const auto &object : context.objects) {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.pipeline.pPipeline);
-    if (object.useDescriptorSet) {
-      std::array<VkDescriptorSet, 2> sets {mTexturesSet.pDescriptorSet, object.descriptorSet.pDescriptorSet};
-      vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.pipeline.pLayout, 0, sets.size(), sets.data(), 0, nullptr);
-    } else {
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.pipeline.pLayout, 0, 1, &mTexturesSet.pDescriptorSet, 0, nullptr);
-    }
+          if (object.push_constants.has_value()) {
+            vkCmdPushConstants(cmd, object.pipeline.pLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, object.push_constants->size, object.push_constants->buffer);
+          }
 
-    if (object.usePushConstants) {
-      vkCmdPushConstants(cmd, object.pipeline.pLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, object.pushConstantsSize, object.pPushConstants);
-    }
-
-    if (object.useIndexBuffer) {
-      vkCmdBindIndexBuffer(cmd, object.indexBuffer.pBuffer, 0, VK_INDEX_TYPE_UINT32);
-      vkCmdDrawIndexed(cmd, object.indexCount, 1, object.indexOffset, 0, 0);
-    } else {
-      vkCmdDraw(cmd, object.vertexCount, 1, object.vertexOffset, 0);
-    }
-  }
-
-  vkCmdEndRendering(cmd);
+          if (object.indices.has_value()) {
+            auto &buffer = mBuffers[object.indices->buffer];
+            vkCmdBindIndexBuffer(cmd, buffer.pBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(cmd, object.indices->count, 1, object.indices->offset, 0, 0);
+          } else {
+            vkCmdDraw(cmd, object.vertices.count, 1, object.vertices.offset, 0);
+          }
+        }
+        vkCmdEndRendering(cmd);
+      }
 }
 
 Frame &Renderer::GetCurrentFrame() { return mFrames[mCurrentFrame % mFrames.size()]; }

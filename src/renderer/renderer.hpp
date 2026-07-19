@@ -12,35 +12,11 @@
 #include <span>
 #include <vector>
 
-#include "core.hpp"
+#include "render_pass.hpp"
 
 struct SlangContext {
   Slang::ComPtr<slang::IGlobalSession> pGlobalSession;
   Slang::ComPtr<slang::ISession>       pSession;
-};
-
-struct GpuStat {
-  uint32_t                    score;
-  uint32_t                    graphicQueueIndex;
-  uint32_t                    presentQueueIndex;
-  uint32_t                    transferQueueIndex;
-  uint32_t                    computeQueueIndex;
-  VkPhysicalDeviceProperties2 properties;
-};
-
-struct PhysicalDevice {
-  VkPhysicalDevice pPhysicalDevice;
-  GpuStat          stat;
-};
-
-struct Swapchain {
-  VkSwapchainKHR           pSwapchain;
-  VkPresentModeKHR         mode;
-  VkSurfaceFormatKHR       surfaceFormat;
-  VkExtent2D               extent;
-  std::vector<VkImage>     images;
-  std::vector<VkImageView> views;
-  std::vector<VkSemaphore> semaphores;
 };
 
 struct DescriptorDesc {
@@ -89,22 +65,6 @@ struct GraphicPipelineDesc {
   GraphicPipelineDesc &EnableStencilTest(const StencilDesc& desc);
 };
 
-struct Pipeline {
-  VkPipeline       pPipeline;
-  VkPipelineLayout pLayout;
-};
-
-enum UpdateRate {
-  UPDATE_RATE_NEVER     = 0,
-  UPDATE_RATE_PER_FRAME = 1,
-};
-
-enum ImageType {
-  IMAGE_TYPE_TEXTURE2D  = 0,
-  IMAGE_TYPE_DRAW_COLOR = 1,
-  IMAGE_TYPE_DRAW_DEPTH = 2,
-};
-
 struct ImageDesc {
   std::string_view name;
   void            *pData;
@@ -116,30 +76,6 @@ struct ImageDesc {
   ImageType        type;
 };
 
-struct Image {
-  VkImage           pImage;
-  VkImageView       pView;
-  VkFormat          mFormat;
-  VkExtent3D        mExtent;
-  VmaAllocation     pVmaAllocation;
-  VmaAllocationInfo mVmaAllocationInfo;
-};
-
-struct Sampler {
-  VkSampler pSampler;
-};
-
-enum BufferType {
-  BUFFER_TYPE_SSBO = 0,
-  BUFFER_TYPE_UBO  = 1,
-};
-
-enum BufferUsage {
-  BUFFER_USAGE_UNKNOWN = 0,
-  BUFFER_USAGE_VERTEX  = 1,
-  BUFFER_USAGE_INDEX   = 2,
-};
-
 struct BufferDesc {
   std::string_view name;
   void            *pData;
@@ -149,33 +85,12 @@ struct BufferDesc {
   BufferUsage      usage;
 };
 
-struct Buffer {
-  VkBuffer          pBuffer;
-  VmaAllocation     pVmaAllocation;
-  VmaAllocationInfo mVmaAllocationInfo;
-};
-
 struct TextureDesc {
   std::string_view name;
   void            *pData;
   uint32_t         width;
   uint32_t         height;
   bool             mipmapped;
-};
-
-struct Texture {
-  Image   mImage;
-  Sampler mSampler;
-};
-
-struct Shader {
-  VkShaderModule pShader;
-  VkDevice       pDevice;
-};
-
-struct DescriptorSet {
-  VkDescriptorSet       pDescriptorSet;
-  VkDescriptorSetLayout pDescriptorSetLayout;
 };
 
 struct Frame {
@@ -199,29 +114,6 @@ struct ImmediateSubmit {
 struct ResizeRequest {
   bool        requested = false;
   GLFWwindow *pWindow   = nullptr;
-};
-
-struct RenderObject {
-  Pipeline pipeline;
-
-  bool          useDescriptorSet;
-  DescriptorSet descriptorSet;
-
-  bool     usePushConstants;
-  void    *pPushConstants;
-  uint32_t pushConstantsSize;
-
-  bool     useIndexBuffer;
-  Buffer   indexBuffer;
-  uint32_t indexCount;
-  uint32_t indexOffset;
-
-  uint32_t vertexCount;
-  uint32_t vertexOffset;
-};
-
-struct RenderContext {
-  std::vector<RenderObject> objects;
 };
 
 class Renderer {

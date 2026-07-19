@@ -13,7 +13,7 @@ if(CCACHE_PROGRAM)
     set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
     set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
 endif()
- 
+
 # ------------------------------------------------------------------
 # Build speed: faster linker (lld/mold). Link time dominates on big
 # C++ projects pulling in Vulkan + Assimp + GLFW.
@@ -32,7 +32,7 @@ elseif(NOT MSVC)
         add_link_options(-fuse-ld=lld)
     endif()
 endif()
- 
+
 #file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
@@ -40,12 +40,12 @@ target_sources(${PROJECT_NAME}
     src/main.cpp
     src/impl.cpp
     src/app.cpp
-    src/renderer.cpp
+    src/renderer/renderer.cpp
     src/asset_manager.cpp
 )
- 
+
 find_package(Vulkan REQUIRED)
- 
+
 get_filename_component(VULKAN_SDK_ROOT "${Vulkan_INCLUDE_DIRS}" DIRECTORY)
 add_library(slang SHARED IMPORTED)
 set_target_properties(slang PROPERTIES
@@ -53,13 +53,13 @@ set_target_properties(slang PROPERTIES
     IMPORTED_LOCATION "${VULKAN_SDK_ROOT}/Bin/slang.dll"
     INTERFACE_INCLUDE_DIRECTORIES "${Vulkan_INCLUDE_DIRS}"
 )
- 
+
 include(FetchContent)
- 
+
 # Optional: pin a shared cache dir so a `rm -rf build` doesn't
 # re-clone everything from git each time.
 # set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.fc-cache" CACHE PATH "")
- 
+
 # ------------------------------------------------------------------
 # GLFW config — skip docs/tests/examples (ON by default upstream)
 # ------------------------------------------------------------------
@@ -67,7 +67,7 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
- 
+
 FetchContent_Declare(
   glfw
   GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -76,23 +76,23 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-  fastgltf 
+  fastgltf
   GIT_REPOSITORY https://github.com/spnda/fastgltf.git
   GIT_TAG        a31be25
   GIT_SHALLOW    TRUE
 )
- 
+
 FetchContent_Declare(
   VulkanMemoryAllocator
   GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
   GIT_TAG        v3.3.0
   GIT_SHALLOW    TRUE
 )
- 
+
 FetchContent_Declare(
   stb
   GIT_REPOSITORY https://github.com/nothings/stb.git
-  GIT_TAG        31c1ad3   
+  GIT_TAG        31c1ad3
   GIT_SHALLOW    TRUE
 )
 

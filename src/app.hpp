@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer.hpp"
+#include "renderer/renderer.hpp"
 #include <GLFW/glfw3.h>
 
 #include "asset_manager.hpp"
